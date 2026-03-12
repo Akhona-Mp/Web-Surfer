@@ -3,7 +3,20 @@ import csv
 import pandas as pd
 from bs4 import BeautifulSoup
 import time
+import gspread
+from google.oauth2.service_account import Credentials
 
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+creds = Credentials.from_service_account_file(
+    "motogp-key.json",
+    scopes=scope
+)
+client = gspread.authorize(creds)
+sheet = client.open("MotoGP Riders Data").sheet1
 
 url = "https://www.motogp.com/en/riders/motogp"
 response = requests.get(url)
@@ -49,7 +62,7 @@ for rider in riders:
     if first_name and last_name:
         full_name = first_name["content"] + " " + last_name["content"]
     else:
-        full_name = name
+        full_name = rider_name
 
     riders_data.append({
         "name": full_name,
@@ -57,7 +70,8 @@ for rider in riders:
         "country": country_name,
         "profile_link": profile_link
     })
-    time.sleep(5)
+
+    time.sleep(2)
 
 # # Open CSV file in write mode
 # with open("motogp_riders.csv", mode="w", newline="", encoding="utf-8") as file:
@@ -81,12 +95,19 @@ for rider in riders:
 #         writer.writerow([name, team, country, profile])
 
 
-# print("CSV saved successfully ✅")
-
-# Convert to dataframe
+# Convert to dataframe and save in CSV file
 df = pd.DataFrame(riders_data)
-
-# Save CSV
 df.to_csv("motogp_riders_full.csv", index=False)
+
+# Exporting to google sheet,clearing the sheet first the adding the data.
+sheet.clear()
+sheet.append_row(["Name", "Team", "Country", "Profile"])
+for rider in riders_data:
+    sheet.append_row([
+        rider["name"],
+        rider["team"],
+        rider["country"],
+        rider["profile_link"]
+    ])
 
 print("Scraping complete. CSV saved.✅")
